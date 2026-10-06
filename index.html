@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>다같이 뭐 먹지</title>
+<meta name="description" content="싫어하는 음식만 적으면 모두 먹을 수 있는 메뉴를 골라드려요">
+<meta property="og:title" content="다같이 뭐 먹지">
+<meta property="og:description" content="싫어하는 음식만 적으면 모두 먹을 수 있는 메뉴를 골라드려요">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#E6F2E9">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍚</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Jua&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="page">
+  <section class="card" id="card" aria-live="polite"></section>
+  <button class="random-link" id="randomBtn" type="button">랜덤으로 메뉴 고르기</button>
+</main>
+
+<template id="mascotTpl">
+  <svg class="mascot" viewBox="0 0 80 80" aria-hidden="true">
+    <path d="M30 14c-3 4 3 6 0 10M40 10c-3 4 3 6 0 10M50 14c-3 4 3 6 0 10" fill="none" stroke="#9CC9B1" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="40" cy="38" rx="27" ry="9" fill="#FFFFFF" stroke="#D9E7DE" stroke-width="2"/>
+    <path d="M12 38h56c0 17-12.5 30-28 30S12 55 12 38z" fill="#3FA47A"/>
+    <rect x="30" y="66" width="20" height="5" rx="2.5" fill="#2E7D57"/>
+    <circle cx="32" cy="49" r="2.8" fill="#163D2A"/>
+    <circle cx="48" cy="49" r="2.8" fill="#163D2A"/>
+    <path d="M34 55q6 5 12 0" fill="none" stroke="#163D2A" stroke-width="2.6" stroke-linecap="round"/>
+    <circle cx="26" cy="54" r="3" fill="#F7A6A0" opacity=".7"/>
+    <circle cx="54" cy="54" r="3" fill="#F7A6A0" opacity=".7"/>
+  </svg>
+</template>
+
+<script src="/script.js"></script>
+</body>
+</html>

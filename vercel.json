@@ -1,0 +1,5 @@
+{
+  "functions": {
+    "api/recommend.js": { "maxDuration": 30 }
+  }
+}
