@@ -19,3 +19,8 @@ index.html을 더블클릭해서 열면 /api가 없어서 추천이 동작하지
 1. GitHub에 push (.env.local은 .gitignore로 제외됨)
 2. Vercel에서 저장소 Import
 3. Settings → Environment Variables에 CLOVA_API_KEY, CLOVA_MODEL 등록 후 Redeploy
+
+## NCP 등 일반 서버에서 실행
+npm install
+npm start   # server.js가 정적 파일 + /api/recommend 제공 (기본 127.0.0.1:3000)
+앞단에 Nginx를 두고 80/443 포트를 3000으로 프록시합니다.
