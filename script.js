@@ -6,6 +6,18 @@
   const MAX_SEEN = 15;
   // 쉼표 말고도 사람들이 자주 쓰는 구분자까지 인식
   const SPLIT = /[,，、\/·]+/;
+  const SEEN_KEY = 'menu-picker:seen';
+
+  // 최근 추천 기록은 이 브라우저에만 저장 (저장이 막혀 있어도 동작은 그대로)
+  function loadSeen() {
+    try {
+      const v = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
+      return Array.isArray(v) ? v.filter(x => typeof x === 'string').slice(-MAX_SEEN) : [];
+    } catch { return []; }
+  }
+  function saveSeen(list) {
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify(list)); } catch { /* 무시 */ }
+  }
 
   const state = {
     people: ['', ''],
@@ -16,7 +28,7 @@
     optsOpen: false,
     error: null,
     menus: [],
-    seen: [] // "다른 메뉴 보기"를 누를 때 이미 본 메뉴는 다시 안 나오게
+    seen: loadSeen() // 최근에 본 메뉴는 다시 안 나오게 (새로고침해도 유지)
   };
 
   const card = document.getElementById('card');
@@ -72,19 +84,20 @@
   }
 
   // mode: 'list'(추천 3개) | 'random'(룰렛)
-  // button이 있으면 그 버튼만 로딩 표시하고 이미 본 메뉴를 제외,
-  // 없으면(입력 화면에서 새로 요청) 입력 화면 전체를 로딩 상태로 만들고 기록 초기화
+  // button이 있으면 그 버튼만 로딩 표시, 없으면 입력 화면 전체를 로딩 상태로
+  // 어느 경우든 최근에 본 메뉴는 제외하고 요청
   async function run(mode, button) {
     if (state.loading) return;
     state.loading = true;
     state.error = null;
     randomBtn.disabled = true;
     if (button) { button.disabled = true; button.textContent = '고르는 중…'; }
-    else { state.seen = []; renderForm(); }
+    else renderForm();
 
     try {
-      state.menus = await fetchMenus(mode, button ? state.seen : []);
-      state.seen = [...state.seen, ...state.menus.map(m => m.name)].slice(-MAX_SEEN);
+      state.menus = await fetchMenus(mode, state.seen);
+      state.seen = [...new Set([...state.seen, ...state.menus.map(m => m.name)])].slice(-MAX_SEEN);
+      saveSeen(state.seen);
       state.loading = false;
       randomBtn.disabled = false;
       mode === 'random' ? renderRandom() : renderResults();

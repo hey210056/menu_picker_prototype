@@ -12,8 +12,16 @@ const MAX_EXCLUDE = 15;
 const TIMEOUT_MS = 15000;
 const SPLIT = /[,，、\/·]+/;
 const CATEGORIES = ['한식', '중식', '일식', '양식', '아시안', '분식', '기타'];
-// 요청마다 이 중에서 무작위로 종류를 배정해서 한식만 나오는 걸 막음
-const MAIN_CATEGORIES = ['한식', '중식', '일식', '양식', '아시안'];
+// 요청마다 종류와 세부 스타일을 무작위로 배정해서
+// 한식만 나오거나, 같은 종류 안에서 늘 같은 대표 메뉴만 나오는 걸 막음
+const STYLES = {
+  '한식': ['구이', '덮밥', '볶음', '국밥·탕', '면', '정식·백반', '찜', '전·부침'],
+  '중식': ['면', '볶음밥', '튀김', '볶음 요리', '만두·딤섬'],
+  '일식': ['덮밥', '라멘·우동', '튀김·카츠', '구이', '초밥', '나베'],
+  '양식': ['파스타', '피자', '스테이크', '버거·샌드위치', '리조또', '브런치'],
+  '아시안': ['베트남', '태국', '인도', '대만', '인도네시아·말레이시아']
+};
+const MAIN_CATEGORIES = Object.keys(STYLES);
 
 // 플레이그라운드에서 다듬은 시스템 프롬프트를 여기에 그대로 붙여넣으세요.
 const SYSTEM_PROMPT = `[역할]
@@ -28,7 +36,7 @@ const SYSTEM_PROMPT = `[역할]
 - [참가자별 싫어하는 음식]: 각 참가자가 먹기 싫거나 못 먹는 것입니다. 오타나 줄임말은 의도한 음식으로 해석하세요.
 - [식사 시간], [술]: 모임 상황입니다.
 - [추천 개수]: 추천할 메뉴 수입니다.
-- [종류 배정]: 메뉴마다 골라야 할 음식 종류이며, 순서대로 하나씩 대응합니다.
+- [종류 배정]: 메뉴마다 골라야 할 음식 종류와 괄호 안의 세부 스타일이며, 순서대로 하나씩 대응합니다.
 - [이미 추천한 메뉴]: 앞서 보여준 메뉴입니다. 다시 추천하지 마세요.
 
 [판단 우선순위] 서로 충돌하면 위에 있는 것을 따르세요.
@@ -49,7 +57,10 @@ const SYSTEM_PROMPT = `[역할]
 
 [메뉴 선택 기준]
 - [종류 배정] 순서대로 각 종류에서 하나씩 고르고, 같은 종류를 두 번 고르지 마세요.
-  조건 때문에 배정된 종류에서 고를 메뉴가 정말 없을 때만 배정되지 않은 종류로 바꾸세요.
+- 괄호 안의 세부 스타일에 맞는 메뉴를 고르세요. 조건 때문에 어렵다면 같은 종류의 다른 스타일로,
+  그래도 없을 때만 배정되지 않은 종류로 바꾸세요.
+- 같은 스타일 안에서도 가장 유명한 메뉴 하나만 반복하지 말고, 대중적인 범위 안에서 다양한 메뉴를 떠올려 고르세요.
+  예: 일식(덮밥)이라면 규동만이 아니라 가츠동, 오야코동, 텐동, 사케동 등도 후보입니다.
 - 실제로 흔히 파는 메뉴만, 식당 메뉴판에 쓰이는 일반적인 이름으로 추천하세요. 메뉴를 지어내거나 특정 식당 이름을 쓰지 마세요.
 - 점심이면 빠르게 먹기 좋은 메뉴를, 저녁에 술을 마신다면 안주로 어울리는 메뉴를 우선하세요.
 
@@ -78,7 +89,7 @@ category는 ${CATEGORIES.join(', ')} 중 하나만 쓰세요.
 [식사 시간] 저녁
 [술] 마실 예정
 [추천 개수] 2개
-[종류 배정] 한식, 일식
+[종류 배정] 한식(구이), 일식(튀김·카츠)
 
 출력:
 {"menus":[{"name":"한우 불고기","category":"한식","reason":"달짝지근한 간장 양념이라 맵지 않고 내장도 없어서 두 분 모두 편하게 드실 수 있어요. 술안주로도 잘 어울려요."},{"name":"돈카츠","category":"일식","reason":"바삭하고 맵지 않아 실패가 적은 메뉴예요. 곁들이는 샐러드에 오이가 있다면 빼달라고 하세요."}]}`;
@@ -114,13 +125,20 @@ function validate(body) {
   return null;
 }
 
-function pickCategories(count) {
-  const pool = [...MAIN_CATEGORIES];
-  for (let i = pool.length - 1; i > 0; i--) {
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+    [a[i], a[j]] = [a[j], a[i]];
   }
-  return pool.slice(0, count);
+  return a;
+}
+
+// 예: ["일식(라멘·우동)", "한식(구이)", "양식(버거·샌드위치)"]
+function pickCategories(count) {
+  return shuffle(MAIN_CATEGORIES)
+    .slice(0, count)
+    .map(c => `${c}(${shuffle(STYLES[c])[0]})`);
 }
 
 function buildUserMessage({ people, options, exclude = [] }, count) {
@@ -210,8 +228,9 @@ async function callClova(apiKey, userMessage) {
           { role: 'user', content: [{ type: 'text', text: userMessage }] }
         ],
         // 플레이그라운드에서 맞춘 값으로 바꾸세요
-        temperature: 0.3,
-        topP: 0.8,
+        // 다양성을 위해 조금 높임. 조건 위반이 늘면 0.4~0.5로 낮추세요
+        temperature: 0.6,
+        topP: 0.9,
         topK: 0,
         maxTokens: 800,
         repetitionPenalty: 1.1
