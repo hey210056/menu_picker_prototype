@@ -5,6 +5,8 @@
   const MAX_LEN = 100;
   const MAX_NAME = 12;
   const POLL_MS = 4000;
+  const FAST_POLL_MS = 1500;      // 누군가 메뉴를 고르는 중일 때는 더 자주 확인
+  const WAIT_LIMIT_MS = 100000;   // 결과를 기다리는 최대 시간
   const QUICK = ['매운 음식', '해산물', '오이', '고수', '날것', '내장', '물에 빠진 고기'];
   const SPLIT = /[,，、\/·]+/;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -57,6 +59,7 @@
     if (!res.ok) {
       const err = new Error(data.error || '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요');
       err.status = res.status;
+      err.gateway = !data.error; // 서버 답이 아니라 중간에서 끊긴 경우 (응답 대기 시간 초과 등)
       throw err;
     }
     return data;
@@ -113,6 +116,7 @@
     me: local.pid && local.token ? { pid: local.pid, token: local.token } : null,
     hostToken: local.hostToken || null,
     busy: false,
+    waiting: null, // 추천이 끝나길 기다리는 중: { since, prevResultId }
     lastResultId: null,
     renderedVersion: -1,
     firstRender: true,
@@ -395,9 +399,12 @@
 
   function updateButtons(room) {
     const pending = room.pending;
-    ui.pending.hidden = !pending;
-    ui.pending.textContent = pending ? `${pending.by}님이 메뉴를 고르는 중이에요…` : '';
-    const blocked = state.busy || Boolean(pending);
+    const waiting = Boolean(state.waiting);
+    ui.pending.hidden = !pending && !waiting;
+    ui.pending.textContent = pending
+      ? `${pending.by}님이 메뉴를 고르는 중이에요. 다 고르면 자동으로 보여드릴게요`
+      : waiting ? '메뉴를 고르는 중이에요. 다 고르면 자동으로 보여드릴게요' : '';
+    const blocked = state.busy || waiting || Boolean(pending);
     ui.recommendBtn.disabled = blocked;
     ui.recommendBtn.textContent = blocked ? '메뉴 고르는 중…' : '메뉴 추천받기';
     ui.randomBtn.disabled = blocked || !state.me;
@@ -506,8 +513,33 @@
       renderOptions(room);
     }
     renderResult(room);
+    checkWaiting(room);
     updateButtons(room);
     state.firstRender = false;
+  }
+
+  function scrollToResult() {
+    ui.resultCard.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  function startWaiting(prevResultId) {
+    state.waiting = { since: Date.now(), prevResultId };
+    showError(null);
+    if (state.room) updateButtons(state.room);
+    poll();
+  }
+
+  function checkWaiting(room) {
+    const w = state.waiting;
+    if (!w) return;
+    const elapsed = Date.now() - w.since;
+    if (room.result && room.result.id !== w.prevResultId) {
+      state.waiting = null;          // 새 결과 도착
+      scrollToResult();
+    } else if ((!room.pending && elapsed > 3000) || elapsed > WAIT_LIMIT_MS) {
+      state.waiting = null;          // 고르던 게 끝났는데 새 결과가 없음 = 실패
+      showError('메뉴를 고르지 못했어요. 잠시 후 다시 눌러주세요');
+    }
   }
 
   async function poll() {
@@ -519,37 +551,49 @@
         if (e.status === 404) return showExpired();
       }
     }
-    state.pollTimer = setTimeout(poll, POLL_MS);
+    const fast = state.waiting || state.room?.pending;
+    state.pollTimer = setTimeout(poll, fast ? FAST_POLL_MS : POLL_MS);
   }
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') poll();
   });
 
   async function recommend(mode, button) {
-    if (state.busy) return;
+    if (state.busy || state.waiting) return;
     if (!state.me) { showError('먼저 이름을 적고 참여해주세요'); return; }
-    // 저장 대기 중인 입력이 있으면 먼저 저장해서 최신 내용으로 추천받기
-    if (state.saveTimer && state.flushSave) {
-      state.saveTimer = null;
-      await state.flushSave();
-    }
 
+    // 버튼을 여러 번 눌러도 한 번만 요청되도록 저장보다 먼저 잠금
     state.busy = true;
     showError(null);
     const label = button.textContent;
     updateButtons(state.room);
     button.textContent = mode === 'respin' ? '뽑는 중…' : '메뉴 고르는 중…';
+    const prevResultId = state.room?.result?.id || null;
+
     try {
+      // 저장 대기 중인 입력이 있으면 먼저 저장해서 최신 내용으로 추천받기
+      if (state.saveTimer && state.flushSave) {
+        state.saveTimer = null;
+        await state.flushSave();
+      }
       const { room } = await api('POST', { action: 'recommend', id: roomId, pid: state.me.pid, token: state.me.token, mode });
       state.busy = false;
       apply(room);
-      ui.resultCard.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      scrollToResult();
     } catch (e) {
       state.busy = false;
       button.textContent = label;
-      if (e.status === 403) handleRemoved();
+      if (e.status === 403) { handleRemoved(); showError(e.message); return; }
+
+      // 이미 누군가(또는 내 이전 요청이) 고르는 중이거나, 응답만 중간에 끊긴 경우:
+      // 에러로 멈추지 않고 결과가 나올 때까지 기다렸다가 자동으로 보여줌
+      const inProgress = e.status === 409 || e.status === 0 || (e.gateway && e.status >= 500);
+      if (inProgress && mode !== 'respin') return startWaiting(prevResultId);
+
       showError(e.message);
+      // 화면에 남아 있는 "고르는 중" 표시를 바로 지우도록 최신 상태를 다시 받아옴
       if (state.room) updateButtons(state.room);
+      poll();
     }
   }
 
