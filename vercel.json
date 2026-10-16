@@ -1,5 +1,6 @@
 {
   "functions": {
-    "api/recommend.js": { "maxDuration": 30 }
+    "api/recommend.js": { "maxDuration": 60 },
+    "api/room.js": { "maxDuration": 60 }
   }
 }

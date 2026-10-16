@@ -1,4 +1,7 @@
 (function () {
+  // 주소에 ?room= 이 있으면 링크 공유 방 화면이라 room.js가 처리함
+  if (new URLSearchParams(location.search).get('room')) return;
+
   const MAX_PEOPLE = 10;
   const MAX_LEN = 100;
   const QUICK = ['매운 음식', '해산물', '오이', '고수', '날것', '내장', '물에 빠진 고기'];

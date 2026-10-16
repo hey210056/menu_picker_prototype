@@ -16,10 +16,17 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<main class="page">
+<!-- 혼자 입력하는 화면 (script.js) -->
+<main class="page" id="solo">
   <section class="card" id="card" aria-live="polite"></section>
-  <button class="random-link" id="randomBtn" type="button">랜덤으로 메뉴 고르기</button>
+  <div class="pills">
+    <button class="random-link" id="roomBtn" type="button">링크로 친구들과 정하기</button>
+    <button class="random-link" id="randomBtn" type="button">랜덤으로 메뉴 고르기</button>
+  </div>
 </main>
+
+<!-- 링크 공유 방 화면 (room.js, 주소에 ?room=방ID 가 있을 때) -->
+<main class="page" id="room" hidden></main>
 
 <template id="mascotTpl">
   <svg class="mascot" viewBox="0 0 80 80" aria-hidden="true">
@@ -36,5 +43,6 @@
 </template>
 
 <script src="/script.js"></script>
+<script src="/room.js"></script>
 </body>
 </html>

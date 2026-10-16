@@ -2,25 +2,27 @@
 
 싫어하는 음식을 적으면 HyperCLOVA X가 모두 먹을 수 있는 메뉴를 추천해주는 웹사이트.
 
+- 혼자 입력: 한 명이 여러 사람의 싫어하는 음식을 대신 적기
+- 링크로 같이 정하기: 방을 만들고 링크를 보내면 각자 자기 휴대폰에서 입력, 결과는 모두에게 똑같이 보임
+
 ## 구조
-- index.html / style.css / script.js : 프론트엔드 (프로토타입 그대로)
-- api/recommend.js : Vercel 서버리스 함수. CLOVA Studio API 키는 여기서만 사용
-- .env : API 키 (vercel dev가 읽는 파일, GitHub에 올라가지 않음)
-- vercel.json : 함수 최대 실행 시간 설정
+- index.html / style.css : 화면
+- script.js : 혼자 입력 화면
+- room.js : 링크 공유 방 화면 (주소가 /?room=방ID 일 때)
+- api/recommend.js : 혼자 입력용 추천 API
+- api/room.js : 링크 공유 방 API
+- lib/prompt.js : 시스템 프롬프트와 생성 파라미터 (튜닝은 여기서)
+- lib/menu-ai.js : 입력 검증, CLOVA Studio 호출, 응답 정리
+- lib/rooms.js : 방 만들기, 참여, 수정, 추천 로직
+- lib/room-store.js : 방 저장소 (기본: data/rooms.json, Upstash 설정 시 Upstash Redis)
+- server.js : NCP 등 일반 서버용 Node 서버
+- .env : API 키 (GitHub에 올라가지 않음)
 
-## 로컬 실행
-npm i -g vercel
-vercel dev
-→ http://localhost:3000
+## NCP 서버
+git pull && npm install && pm2 restart menu-picker
+방 데이터는 data/rooms.json에 저장되고, 마지막 활동 후 48시간이 지나면 자동으로 지워집니다.
 
-index.html을 더블클릭해서 열면 /api가 없어서 추천이 동작하지 않아요. 꼭 vercel dev로 실행하세요.
-
-## 배포
-1. GitHub에 push (.env.local은 .gitignore로 제외됨)
-2. Vercel에서 저장소 Import
-3. Settings → Environment Variables에 CLOVA_API_KEY, CLOVA_MODEL 등록 후 Redeploy
-
-## NCP 등 일반 서버에서 실행
-npm install
-npm start   # server.js가 정적 파일 + /api/recommend 제공 (기본 127.0.0.1:3000)
-앞단에 Nginx를 두고 80/443 포트를 3000으로 프록시합니다.
+## Vercel
+링크 공유 방을 쓰려면 Upstash Redis가 필요합니다. (Vercel은 요청마다 서버가 바뀌어서 파일 저장이 안 됨)
+Vercel 프로젝트 → Storage(또는 Marketplace) → Upstash Redis 연결 → Redeploy
+환경변수 UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN (또는 KV_REST_API_URL / KV_REST_API_TOKEN)을 자동으로 인식합니다.
