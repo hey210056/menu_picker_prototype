@@ -21,8 +21,3 @@
 ## NCP 서버
 git pull && npm install && pm2 restart menu-picker
 방 데이터는 data/rooms.json에 저장되고, 마지막 활동 후 48시간이 지나면 자동으로 지워집니다.
-
-## Vercel
-링크 공유 방을 쓰려면 Upstash Redis가 필요합니다. (Vercel은 요청마다 서버가 바뀌어서 파일 저장이 안 됨)
-Vercel 프로젝트 → Storage(또는 Marketplace) → Upstash Redis 연결 → Redeploy
-환경변수 UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN (또는 KV_REST_API_URL / KV_REST_API_TOKEN)을 자동으로 인식합니다.
