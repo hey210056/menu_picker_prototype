@@ -26,12 +26,13 @@ const PUBLIC_FILES = {
   '/': 'index.html',
   '/index.html': 'index.html',
   '/style.css': 'style.css',
-  '/script.js': 'script.js',
-  '/room.js': 'room.js'
+  '/app.js': 'app.js'
 };
 for (const [route, file] of Object.entries(PUBLIC_FILES)) {
   app.get(route, (req, res) => res.sendFile(path.join(__dirname, file)));
 }
+// 이미지와 아이콘은 assets 폴더 안의 파일만 공개
+app.use('/assets', express.static(path.join(__dirname, 'assets'), { index: false, dotfiles: 'deny', maxAge: '7d' }));
 
 const wrap = handler => async (req, res, next) => {
   try {
